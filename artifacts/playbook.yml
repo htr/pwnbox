@@ -1,0 +1,19 @@
+- hosts: localhost
+  tasks:
+
+    - apt:
+        update_cache: yes
+        pkg:
+          - zsh
+
+    - user:
+        name: root
+        shell: /usr/bin/zsh
+        password_lock: yes
+
+
+    - authorized_key:
+        user: root
+        state: present
+        key: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCsGoT8oyWc547y0FT4YqBbkMMTReF42OrFx/I41ampUKUGlxzlxyZd7zxi3Z4hoxWMgZZBlL4GrVzHxO+KjvhVOyaxMgdIHH2etd5UqeZw44X+9b9Xq1wRxEut0LNX9MyJsmuEW0GzaAOA4gw6hekMNrlV2MsP67UqQSdXw6h9sFEuN1SJTeNJ5ZaG2JnThUw+gzHq8cBmh3XN7XrJWhjyp6wnpb9uq2ksOFW/unoOkwnnSL86OYBmVnDVZV2nIKG6vigRnCQPNcOWM8aF9DnxZxafxntiH/DZlcYLNm94SeABDG9v1biT2ca0ZOhNuMMKYOtzV0yWdVEbQB/5eh0cbTCufa3ziOFhX39vDsU5qOiGrYgj6sb4BqkhmZ/EjUy3NorUinw2VO9q7H0QuKJ1E3PtnqsLd6NngDR+3cRYGstCY4Agng18I7KkvEIy1EBiadUSfFdjNpLmTz9N9N7fHDfVQ6jT2NvK09WzwFGuaIteyEmY41QG3RWv/zGpm+8='
+
