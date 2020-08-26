@@ -1,9 +1,106 @@
 - hosts: localhost
+
+  vars:
+
+    myuser: user
+
   tasks:
 
-    - apt:
+    #
+    #  authorized_key disabled. should be managed by cloud-init
+    #
+    # - authorized_key:
+    #     user: root
+    #     state: present
+    #     key: '...'
+
+
+    - name: install packages
+      register: task_result
+      until: task_result is not failed
+      retries: 5
+      delay: 5
+      apt:
         update_cache: yes
         pkg:
+          - apt-file
+          - autoconf
+          - automake
+          - bison
+          - build-essential
+          - burpsuite
+          - cabextract
+          - cewl
+          - cmake
+          - curl
+          - dirb
+          - dirbuster
+          - dnsenum
+          - dnsutils
+          - dstat
+          - exploitdb
+          - file
+          - firefox-esr
+          - flex
+          - ffuf
+          - gdb
+          - gdbserver
+          - git
+          - gnupg
+          - gobuster
+          - golang
+          - hashcat
+          - icewm
+          - inetutils-ping
+          - iproute2
+          - ipython3
+          - john
+          - jq
+          - lftp
+          - libtool
+          - ltrace
+          - masscan
+          - metasploit-framework
+          - mutt
+          - ncdu
+          - ncurses-term
+          - neovim
+          - netcat
+          - nikto
+          - openvpn
+          - p7zip-full
+          - pkg-config
+          - python3-docker
+          - python3-pip
+          - python-pip
+          - ripgrep
+          - rsync
+          - runit
+          - seclists
+          - socat
+          - sqlmap
+          - strace
+          - swaks
+          - tcpdump
+          - terminator
+          - tig
+          - tigervnc-standalone-server
+          - tmux
+          - uniscan
+          - unzip
+          - upx
+          - w3m
+          - wapiti
+          - weevely
+          - wfuzz
+          - wget
+          - whatweb
+          - whois
+          - wine32
+          - wine64
+          - winetricks
+          - wpscan
+          - yarnpkg
           - zsh
 
     - user:
@@ -12,8 +109,192 @@
         password_lock: yes
 
 
-    - authorized_key:
-        user: root
+    - name: "installing pip packages"
+      pip:
+        name:
+          - angr
+          - capstone
+          - keystone-engine
+          - pwntools
+          - r2pipe
+          - ropgadget
+          - ropper
+          - unicorn
+          - z3-solver
+          - six==1.14.0
+
+    - name: "sudoers: members of sudo don't need password"
+      lineinfile:
+        path: /etc/sudoers
         state: present
-        key: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCsGoT8oyWc547y0FT4YqBbkMMTReF42OrFx/I41ampUKUGlxzlxyZd7zxi3Z4hoxWMgZZBlL4GrVzHxO+KjvhVOyaxMgdIHH2etd5UqeZw44X+9b9Xq1wRxEut0LNX9MyJsmuEW0GzaAOA4gw6hekMNrlV2MsP67UqQSdXw6h9sFEuN1SJTeNJ5ZaG2JnThUw+gzHq8cBmh3XN7XrJWhjyp6wnpb9uq2ksOFW/unoOkwnnSL86OYBmVnDVZV2nIKG6vigRnCQPNcOWM8aF9DnxZxafxntiH/DZlcYLNm94SeABDG9v1biT2ca0ZOhNuMMKYOtzV0yWdVEbQB/5eh0cbTCufa3ziOFhX39vDsU5qOiGrYgj6sb4BqkhmZ/EjUy3NorUinw2VO9q7H0QuKJ1E3PtnqsLd6NngDR+3cRYGstCY4Agng18I7KkvEIy1EBiadUSfFdjNpLmTz9N9N7fHDfVQ6jT2NvK09WzwFGuaIteyEmY41QG3RWv/zGpm+8='
+        regexp: '^%sudo'
+        line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+
+    - name: "adding user {{ myuser }}"
+      user:
+        name: "{{ myuser }}"
+        shell: /usr/bin/zsh
+        password_lock: yes
+        groups:
+          - sudo
+          - root
+
+
+    - name: "download grml zshrc into {{ myuser }}'s home"
+      become: yes
+      become_user: "{{ myuser }}"
+      get_url:
+        url: https://git.grml.org/f/grml-etc-core/etc/zsh/zshrc
+        dest: "/home/{{ myuser }}/.zshrc"
+
+
+    - name: "wine: installing corefonts"
+      become: yes
+      become_user: "{{ myuser }}"
+      shell: |
+        winetricks -q corefonts
+
+    - name: "downloading dirsearch"
+      git:
+        repo: https://github.com/maurosoria/dirsearch.git
+        dest: /opt/dirsearch
+
+    - name: "downloading peass"
+      git:
+        repo: https://github.com/carlospolop/privilege-escalation-awesome-scripts-suite
+        dest: /opt/peass
+
+    - name: "downloading linuxprivchecker"
+      git:
+        repo: https://github.com/sleventyeleven/linuxprivchecker.git
+        dest: /opt/linuxprivchecker
+
+    - name: "downloading PayloadsAllTheThings"
+      git:
+        repo: https://github.com/swisskyrepo/PayloadsAllTheThings.git
+        dest: /opt/payloads-all-the-things
+
+    - name: "downloading PinCTF"
+      git:
+        repo: https://github.com/ChrisTheCoolHut/PinCTF.git
+        dest: /opt/pinctf
+
+    - stat:
+        path: /usr/local/bin/radare2
+      register: r2_stat
+
+    - name: "downloading radare2"
+      git:
+        repo: https://github.com/radare/radare2
+        dest: /root/radare2
+      when: r2_stat.stat.exists == false
+
+    - name: "building radare2"
+      shell: |
+        cd /root/radare2
+        ./sys/install.sh --install
+      when: r2_stat.stat.exists == false
+
+    - name: "downloading Cutter"
+      get_url:
+        url: https://github.com/radareorg/cutter/releases/download/v1.11.1/Cutter-v1.11.1-x64.Linux.AppImage
+        dest: /usr/bin/Cutter
+        mode: '0755'
+
+    - name: "installing easy-novnc"
+      shell: |
+        test -f /usr/bin/easy-novnc && exit 0
+        cd /tmp
+        curl -L https://github.com/pgaskin/easy-novnc/archive/6e198aa0fb70c68b1bc3355bfce4df30fb0f71a4.tar.gz | tar zxvf -
+        cd easy-novnc-6e198aa0fb70c68b1bc3355bfce4df30fb0f71a4
+        go build
+        cp -f easy-novnc /usr/bin
+
+
+
+    - name: "ensuring users' systemd directory exists"
+      file:
+        path: "/home/{{ myuser }}/.config/systemd/user/default.target.wants"
+        state: directory
+        owner: "{{ myuser }}"
+        group: "{{ myuser }}"
+
+    - name: "installing vncserver systemd service"
+      copy:
+        owner: "{{ myuser }}"
+        group: "{{ myuser }}"
+        dest: "/home/{{ myuser }}/.config/systemd/user/vncserver@.service"
+        content: |
+          [Unit]
+          Description=Remote desktop service (VNC)
+          After=network.target
+
+          [Service]
+          Type=simple
+          WorkingDirectory=/home/h
+          ExecStart=/usr/bin/Xtigervnc -localhost -rfbport 5900 -SecurityTypes None -AlwaysShared -AcceptKeyEvents -AcceptPointerEvents -AcceptSetDesktopSize -SendCutText -AcceptCutText :%i
+
+          [Install]
+          WantedBy=default.target
+
+    - name: "installing novnc systemd service"
+      copy:
+        owner: "{{ myuser }}"
+        group: "{{ myuser }}"
+        dest: "/home/{{ myuser }}/.config/systemd/user/novnc@.service"
+        content: |
+          [Unit]
+          Description=noVNC service
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/easy-novnc --novnc-params resize=remote -a 127.0.0.1:690%i
+
+          [Install]
+          WantedBy=default.target
+
+    - name: "installing icewm systemd service"
+      copy:
+        owner: "{{ myuser }}"
+        group: "{{ myuser }}"
+        dest: "/home/{{ myuser }}/.config/systemd/user/icewm@.service"
+        content: |
+          [Unit]
+          After=network.target
+
+          [Service]
+          Environment=DISPLAY=:%i
+          WorkingDirectory=/home/h
+          ExecStart=/usr/bin/icewm
+
+          [Install]
+          WantedBy=default.target
+
+    - name: "enabling icewm"
+      become: yes
+      become_user: "{{ myuser }}"
+      file:
+        src: "/home/{{ myuser }}/.config/systemd/user/icewm@.service"
+        dest: "/home/{{ myuser }}/.config/systemd/user/default.target.wants/icewm@1.service"
+        state: link
+
+    - name: "enabling novnc"
+      become: yes
+      become_user: "{{ myuser }}"
+      file:
+        src: "/home/{{ myuser }}/.config/systemd/user/novnc@.service"
+        dest: "/home/{{ myuser }}/.config/systemd/user/default.target.wants/novnc@1.service"
+        state: link
+
+    - name: "enabling vncserver"
+      become: yes
+      become_user: "{{ myuser }}"
+      file:
+        src: "/home/{{ myuser }}/.config/systemd/user/vncserver@.service"
+        dest: "/home/{{ myuser }}/.config/systemd/user/default.target.wants/vncserver@1.service"
+        state: link
+
+    - shell: |
+        apt clean
 

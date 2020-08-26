@@ -1,0 +1,110 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+# ssh_keys is a list of key IDs. you can get those with doctl compute ssh-key list
+# you might want to consider using ansible's digital_ocean_sshkey module as well
+    ssh_keys: [ '...', '...' ]
+
+# the image id can be retrieved from doctl-personal compute image list-user
+# an alternative is to use ansible's digital_ocean_image_info module to do a lookup by name
+    image_id: '...'
+
+
+  tasks:
+# nothing special here, it just creates the VM from the provided base image
+    - digital_ocean_droplet:
+        unique_name: yes
+        region: fra1
+        image: "{{ image_id }}"
+        name: pwnbox
+        size_id: 8gb
+        state: present
+        ssh_keys: "{{ ssh_keys }}"
+      register: pwnbox_droplet
+
+    - name: add hosts
+      add_host:
+        name: "{{ pwnbox_droplet.data.ip_address }}"
+        groups: "droplets"
+
+# I don't like to type IP addresses or change my hosts configuration every time I create
+# a pwnbox, so I use a dns record.
+    - digital_ocean_domain:
+        state: present
+        name: "pwnbox.DOMAIN.TLD"
+        ip: "{{ pwnbox_droplet.data.ip_address }}"
+
+- hosts: droplets
+  remote_user: root
+  gather_facts: no
+
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+# you want to change this. really.
+    myuser: h
+
+  tasks:
+    - wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 22
+      delegate_to: localhost
+
+    - name: gather facts
+      setup:
+
+    - file:
+        path: "/home/{{ myuser }}/.ssh"
+        state: directory
+        owner: "{{ myuser }}"
+        group: "{{ myuser }}"
+
+# The serious business starts here. /root/.ssh/authorized_keys should have been populated
+# by cloud-init, so I just copy that over to my user's home.
+    - name: add ssh key
+      copy:
+        src: /root/.ssh/authorized_keys
+        dest: "/home/{{ myuser }}/.ssh/authorized_keys"
+        remote_src: yes
+        owner: "{{ myuser }}"
+        group: "{{ myuser }}"
+
+# all my dotfiles are inside the local user_home/ directory
+    - copy:
+        src: user_home/
+        dest: "/home/{{myuser}}"
+        owner: "{{ myuser }}"
+        group: "{{ myuser }}"
+
+# just because it can be done during build time
+    - name: update neovim plugins
+      shell: nvim +PlugInstall +qall --headless
+      become: yes
+      become_user: "{{ myuser }}"
+
+# a ready to use IDA installation
+    - stat:
+        path: /opt/idafree/ida64
+      register: idafree
+
+    - name: "downloading idafree"
+      get_url:
+        url: https://out7.hex-rays.com/files/idafree70_linux.run
+        dest: /tmp/idafree.run
+        mode: '0755'
+      when: idafree.stat.exists == false
+
+    - command: /tmp/idafree.run --prefix /opt/idafree  --mode unattended --installpassword "x"
+      when: idafree.stat.exists == false
+
+
+# I initialize r2pm as `myuser` and install any plugins I'm currently using.
+    - name: "installing r2ghidra-dec into {{ myuser }}'s home"
+      become: yes
+      become_user: "{{ myuser }}"
+      shell: |
+        (r2pm -l | grep r2ghidra) || (r2pm init && r2pm -i r2ghidra-dec)
+
+
