@@ -36,9 +36,9 @@ if [[ -f "$output_image" ]] ; then
   exit 1
 fi
 
-perr "downloading linux and initrd.gz"
-wget -nc http://ftp.debian.org/debian/dists/stable/main/installer-amd64/current/images/netboot/debian-installer/amd64/linux
-wget -nc http://ftp.debian.org/debian/dists/stable/main/installer-amd64/current/images/netboot/debian-installer/amd64/initrd.gz
+perr "downloading kali's linux and initrd.gz"
+wget -nc https://http.kali.org/kali/dists/kali-rolling/main/installer-amd64/current/images/netboot/debian-installer/amd64/linux
+wget -nc https://http.kali.org/kali/dists/kali-rolling/main/installer-amd64/current/images/netboot/debian-installer/amd64/initrd.gz
 
 perr "creating disk image"
 qemu-img create -f qcow2 $output_image "${image_size}G"
@@ -51,6 +51,6 @@ qemu-system-x86_64 -machine q35,accel=kvm,vmport=off -m 1G -smp 4 \
   -device virtio-net-pci,netdev=net0 \
   -netdev 'user,id=net0,guestfwd=tcp:10.0.2.55:80-cmd:busybox httpd -i -h ./artifacts' \
   -kernel ./linux -initrd initrd.gz \
-  -append 'console=ttyS0 install DEBIAN_FRONTEND=text auto=true preseed/url=http://10.0.2.55:80/preseed.cfg net.ifnames=0 locale=en_US keymap=us hostname=myvm domain=""' -nographic -no-reboot
+  -append 'console=ttyS0 install DEBIAN_FRONTEND=text auto=true preseed/url=http://10.0.2.55:80/preseed.cfg net.ifnames=0 locale=en_US keymap=us hostname=pwnbox domain=""' -nographic -no-reboot
 
 
