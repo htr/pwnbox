@@ -1,6 +1,6 @@
 # pwnbox vm
 
-My personal pwnbox vm base image. Based on [vm-image-builder](https://github.com/htr/vm-image-builder).
+My personal pwnbox vm base image. Based on [vm-image-builder](https://github.com/htr/vm-image-builder). The way I use this image is described [in this post](https://htr.github.io/posts/hacking-the-box-from-my-ipad/).
 
 ### features
 
